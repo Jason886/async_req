@@ -7,12 +7,16 @@
 extern "C" {
 #endif
 
-    typedef void *(*async_func_t)(void *ud);
-    typedef void (*async_cb_t)(void *res, void *ud);
+    struct async_task;
 
-    typedef struct {
+    typedef void *(*async_func_t)(struct async_task *task, int argc, char **argv);
+    typedef void (*async_cb_t)(struct async_task *task, void *res);
+
+    typedef struct async_task{
         async_func_t func;
         async_cb_t cb;
+        int argc;
+        char **argv;
         void *ud;
 
         pthread_t _tid;
@@ -21,10 +25,8 @@ extern "C" {
         int _ref_count;
     } async_task_t;
 
-    async_task_t *chivox_async_create(async_func_t func, async_cb_t cb, void *ud);
-    void chivox_async_retain(async_task_t *task);
-    void chivox_async_release(async_task_t *task);
-    void chivox_async_cancel(async_task_t *task);
+    async_task_t *chivox_async_create(async_func_t func, async_cb_t cb, int argc, char ** argv,void *ud);
+    void chivox_async_delete(async_task_t *task);
 
 #ifdef __cplusplus
 }
