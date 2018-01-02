@@ -26,8 +26,8 @@ static void _task_release(async_task_t *task) {
         if (do_free) {
             printf("chivox_async: free task %p\n", (void *)task);
             pthread_mutex_destroy(&task->_mtx);
-            if (task->argv) {
-                free(task->argv);
+            if (task->arg) {
+                free(task->arg);
             }
             free(task);
         }
@@ -44,9 +44,8 @@ static void _task_cancel(async_task_t *task) {
 
 static void *_inner_func(void *arg) {
     async_task_t *task = arg;
-    int stack[1024 * 20] = {0,};
 
-    void *res = task->func(task, task->argc, task->argv);
+    void *res = task->func(task, task->arg, task->arg_len);
     int canceled = 0;
     pthread_mutex_lock(&task->_mtx);
     canceled = task->_canceled;
@@ -65,7 +64,7 @@ static void *_inner_func(void *arg) {
     return NULL;
 }
 
-async_task_t *chivox_async_create(async_func_t func, async_cb_t cb, int argc, char **argv, void *ud) {
+async_task_t *chivox_async_create(async_func_t func, async_cb_t cb, void *ud, void *arg, int arg_len) {
 
     if (!func) return NULL;
     async_task_t *task = malloc(sizeof *task);
@@ -73,18 +72,19 @@ async_task_t *chivox_async_create(async_func_t func, async_cb_t cb, int argc, ch
         memset(task, 0, sizeof *task);
         task->func = func;
         task->cb = cb;
-        task->argc = argc;
-        if (argc > 0) {
-            task->argv = malloc(sizeof(char *)*argc);
-            if (!task->argv) {
+        task->ud = ud;
+        task->_ref_count = 1;
+        task->_canceled = 0;
+
+        if (arg && arg_len > 0) {
+            task->arg_len = arg_len;
+            task->arg = malloc(arg_len);
+            if (!task->arg) {
                 free(task);
                 return NULL;
             }
+            memcpy(task->arg, arg, arg_len);
         }
-        task->ud = ud;
-
-        task->_ref_count = 1;
-        task->_canceled = 0;
 
         pthread_mutex_init(&task->_mtx, NULL);
 
